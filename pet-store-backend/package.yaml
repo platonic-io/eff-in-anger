@@ -1,0 +1,47 @@
+name: pet-store-backend
+synopsis:  A Simple event-sourced server for Pet Store
+ghc-options: -Wall -fno-warn-orphans
+
+
+library:
+  source-dirs: src
+  dependencies:
+    - aeson
+    - async
+    - base
+    - bytestring
+    - containers
+    - data-default
+    - http-client
+    - lens
+    - mtl
+    - network
+    - random
+    - servant
+    - servant-server
+    - servant-client
+    - servant-swagger
+    - swagger2
+    - text
+    - time
+    - wai-extra
+    - warp
+  exposed-modules:
+    - PetStore.Api
+    - PetStore.Messages
+    - PetStore.Server
+    - PetStore.Config
+  default-extensions:
+    - OverloadedStrings
+    - RecordWildCards
+    - ScopedTypeVariables
+    - MonoLocalBinds
+
+executables:
+  pet-store-server:
+    source-dirs:
+      - server
+    main: server.hs
+    dependencies:
+      - base
+      - pet-store-backend

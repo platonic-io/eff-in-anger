@@ -1,0 +1,12 @@
+flags: {}
+packages:
+- 'pet-store-backend'
+extra-deps:
+resolver: lts-11.7
+image:
+  containers:
+    -
+      base: "fpco/stack-run"
+      name: "aleryo/eff-in-anger"
+      entrypoints:
+        - pet-store-server
