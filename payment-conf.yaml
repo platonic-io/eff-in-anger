@@ -1,0 +1,14 @@
+server:
+  requestLog:
+    appenders:
+      - type: console
+        layout:
+          type: access-json
+logging:
+  level: INFO
+  appenders:
+  - type: console
+    layout:
+      type: json
+      additionalFields:
+        service-name: "payment"
