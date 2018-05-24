@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE RecordWildCards       #-}
@@ -11,6 +12,7 @@ module PetStore.Store where
 
 import           Control.Concurrent.MVar
 import           Control.Exception
+import           Control.Monad.Reader
 import           Control.Monad.Trans     (MonadIO (..))
 import           Data.Aeson              (eitherDecode, encode)
 import qualified Data.List               as List
@@ -30,18 +32,22 @@ data Store = Store { storedPets :: [ Pet ]
                    , eventSink  :: IO.Handle
                    }
 
-send :: (MonadIO m) => Input -> StoreDB -> m Output
-send input storedb = withinLog input $ liftIO $ modifyMVar storedb $ \ store@Store{..} -> do
-  let event = act input store
-  hPutStrLn eventSink (decodeUtf8 $ encode event)
-  IO.hFlush eventSink
-  pure (apply event store, event)
+send :: (MonadIO m, MonadReader StoreDB m) => Input -> m Output
+send input = withinLog input $ do
+  storedb <- ask
+  liftIO $ modifyMVar storedb $ \ store@Store{..} -> do
+    let event = act input store
+    hPutStrLn eventSink (decodeUtf8 $ encode event)
+    IO.hFlush eventSink
+    pure (apply event store, event)
 
-resetStore :: (MonadIO m) => StoreDB -> m ()
-resetStore db = liftIO $ modifyMVar_  db $ \ Store{..} -> do
-  IO.hSeek eventSink IO.AbsoluteSeek 0
-  IO.hSetFileSize eventSink 0
-  pure $ Store [] Map.empty eventSink
+resetStore :: (MonadIO m, MonadReader StoreDB m) => m ()
+resetStore = do
+  db <- ask
+  liftIO $ modifyMVar_  db $ \ Store{..} -> do
+    IO.hSeek eventSink IO.AbsoluteSeek 0
+    IO.hSetFileSize eventSink 0
+    pure $ Store [] Map.empty eventSink
 
 act :: Input -> Store -> Output
 act Add{pet}  Store{storedPets}
