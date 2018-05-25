@@ -26,6 +26,7 @@ library:
     - time
     - wai-extra
     - warp
+    - freer-simple
   exposed-modules:
     - PetStore.Api
     - PetStore.Messages

@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 63721d03989fa2d42d75f63b64e0076889be5b0b350adc5b2d85d87260c65b5b
+-- hash: ad08b815f8f23a32f218479e674434e85360d87c7a0780042cb150d70705c43f
 
 name:           pet-store-backend
 version:        0.0.0
@@ -22,6 +22,7 @@ library
     , bytestring
     , containers
     , data-default
+    , freer-simple
     , http-client
     , lens
     , mtl
