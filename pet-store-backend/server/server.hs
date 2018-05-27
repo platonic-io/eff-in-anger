@@ -9,5 +9,5 @@ import           System.Environment
 
 main :: IO ()
 main = do
-  [devMode, port, paymentHost, paymentPort ] <- getArgs
-  startServer $ ServerConfig (read devMode) (read port) paymentHost (read paymentPort)
+  [devMode, port, payHost, payPort ] <- getArgs
+  startServer $ ServerConfig (read devMode) (read port) payHost (read payPort)

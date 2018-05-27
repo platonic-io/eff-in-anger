@@ -6,7 +6,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module PetStore.Log where
 
-import           Control.Monad.Trans
 import           Data.Aeson
 import           Data.ByteString.Lazy.Char8 as IO
 import           Data.Time.Clock.System
@@ -18,20 +17,21 @@ import qualified Control.Monad.Freer       as Freer
 instance ToJSON NoContent where
   toJSON _ = Null
 
+withinLog' :: (ToJSON v, ToJSON b, Member LogEffect effs)
+           => v
+           -> Eff effs b -> Eff effs b
 withinLog' start act = do
-  Freer.send $ mlog' start
+  mlog start
   res <- act
-  Freer.send $ mlog' res
+  mlog res
   pure res
-
-mlog' a = do
-    ts <- systemToUTCTime <$> getSystemTime
-    IO.putStrLn $ encode $ object [ "timestamp" .= formatTime defaultTimeLocale (iso8601DateFormat (Just "%H:%M:%S%Q")) ts
-                                  , "message" .= a
-                              ]
 
 data LogEffect r where
   Log :: (ToJSON a) => a -> LogEffect ()
+
+mlog :: (Member LogEffect effs, ToJSON a )
+     =>  a -> Eff effs ()
+mlog = Freer.send . Log
 
 runLog :: (Member IO m) => Eff (LogEffect : m) x -> Eff m x
 runLog = interpret eval where

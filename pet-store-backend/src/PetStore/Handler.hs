@@ -8,15 +8,10 @@
 {-# LANGUAGE TypeOperators         #-}
 module PetStore.Handler where
 
-import           Control.Monad.Except
-import           Control.Monad.Freer       (Eff, Member, runM)
-import qualified Control.Monad.Freer       as Freer
-import           Control.Monad.Freer.Error (Error, runError)
-import           Control.Monad.Reader
-import           Data.Monoid               ((<>))
-import           PetStore.Log
+
+import           Control.Monad.Freer (Eff, Member, send)
+import           PetStore.Command
 import           PetStore.Messages
-import           PetStore.Payment.Api
 import           PetStore.Store
 import           Servant
 
@@ -25,37 +20,31 @@ type PetServer' m a =
 
 listPets' :: PetServer' m Output
 listPets' = do
-  Freer.send ListPets'
+  send $ Command ListPets
 
 addPet' :: Pet -> PetServer' m Output
-addPet' pet =  Freer.send (Add' pet)
+addPet' pet =  send $ Command (Add pet)
 
 removePet' :: Pet -> PetServer' m Output
-removePet' pet =  Freer.send (Remove' pet)
+removePet' pet =  send $ Command (Remove pet)
 
 reset' :: (Member IO m) => StoreDB -> PetServer' m NoContent
 reset' db = resetStore db >> pure NoContent
 
 login'            :: User -> PetServer' m Output
-login' user =  Freer.send (UserLogin' user)
+login' user =  send $ Command (UserLogin user)
 
 logout'           :: User -> PetServer' m Output
-logout' user =  Freer.send (UserLogout' user)
+logout' user =  send $ Command (UserLogout user)
 
 addToBasket'      :: User -> Pet -> PetServer' m Output
-addToBasket' user pet =  Freer.send (AddToBasket' user pet)
+addToBasket' user pet =  send $ Command (AddToBasket user pet)
 
 removeFromBasket' :: User -> Pet -> PetServer' m Output
-removeFromBasket' user pet =  Freer.send (RemoveFromBasket' user pet)
+removeFromBasket' user pet =  send $ Command (RemoveFromBasket user pet)
 
-checkout'         :: (Member IO m) => PaymentClient -> User -> Payment -> PetServer' m Output
-checkout' paymentClient user payment = do
-  res <- Freer.send $ paymentClient payment
-  case res of
-    PaymentResult _ True -> Freer.send (CheckoutBasket' user payment)
-    _                    -> do
-      Freer.send $ mlog' ("failed to validate payment" <> show res)
-      Freer.send $ CheckoutFailed' $ Error InvalidPayment
+checkout'         :: (Member IO m) => User -> Payment -> PetServer' m Output
+checkout' user payment = send $ Command (CheckoutBasket user payment)
 
 listBasket'       :: User -> PetServer' m Output
-listBasket' user = Freer.send (GetUserBasket' user)
+listBasket' user = send $ Command (GetUserBasket user)
