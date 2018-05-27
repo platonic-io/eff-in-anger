@@ -13,34 +13,22 @@ import           Data.Time.Clock.System
 import           Data.Time.Format
 import           Servant                    (NoContent)
 import Control.Monad.Freer
-
-class MonadLog m where
-  mlog :: (ToJSON a) => a -> m ()
-
-
-withinLog :: (MonadLog m, Monad m, ToJSON a, ToJSON b) => a -> m b -> m b
-withinLog start act = do
-  mlog start
-  res <- act
-  mlog res
-  pure res
+import qualified Control.Monad.Freer       as Freer
 
 instance ToJSON NoContent where
   toJSON _ = Null
 
-instance (MonadIO m) => MonadLog m where
-  mlog a = liftIO $ do
+withinLog' start act = do
+  Freer.send $ mlog' start
+  res <- act
+  Freer.send $ mlog' res
+  pure res
+
+mlog' a = do
     ts <- systemToUTCTime <$> getSystemTime
     IO.putStrLn $ encode $ object [ "timestamp" .= formatTime defaultTimeLocale (iso8601DateFormat (Just "%H:%M:%S%Q")) ts
                                   , "message" .= a
-                                  ]
-
--- withinLog' :: (Member MonadLog m, ToJSON a, ToJSON b) => a -> Eff m b -> Eff m b
--- withinLog' start act = do
---   mlog start
---   res <- act
---   mlog res
---   pure res
+                              ]
 
 data LogEffect r where
   Log :: (ToJSON a) => a -> LogEffect ()

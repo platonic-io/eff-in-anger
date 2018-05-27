@@ -27,14 +27,9 @@ import           PetStore.Store
 import           PetStore.Swagger
 import           Servant
 
-type MyApi = Foo :<|> Bar :<|> ListPets
-
-apiSig :: Proxy MyApi
-apiSig = Proxy
-
 startServer :: ServerConfig -> IO ()
 startServer conf@ServerConfig{..} = do
-  mlog $ object [ "action" .= ("start" :: String), "configuration" .= conf ]
+  mlog' $ object [ "action" .= ("start" :: String), "configuration" .= conf ]
   store <- makeStore
   paymentClient <- makeClient paymentHost paymentPort
   logger <- doLog operationMode
@@ -42,25 +37,22 @@ startServer conf@ServerConfig{..} = do
     where
       doLog _ = mkRequestLogger $ def { outputFormat = CustomOutputFormatWithDetails formatAsJSON }
 
-      myApi = foo :<|> bar :<|> listPets'
+      myApi paymentClient = listPets' :<|> addPet' :<|> removePet' :<|> login' :<|> logout' :<|> addToBasket' :<|> removeFromBasket' :<|> checkout' paymentClient :<|> listBasket'
 
-      handleCustom :: (Member IO m) => Eff (LogEffect : m) x -> Eff m x
-      handleCustom = runLog
+      runCustom :: (Member IO m) => StoreDB -> Eff (Command : LogEffect : m) x -> Eff m x
+      runCustom store = runLog . runEvent store . runCommand store
 
-      handleEff :: Eff '[Error ServantErr, IO] x -> IO (Either ServantErr x)
-      handleEff = runM . runError -- . runLog
+      runEff :: Eff '[Error ServantErr, IO] x -> IO (Either ServantErr x)
+      runEff = runM . runError -- . runLog
 
-      handleServant :: IO (Either ServantErr x) -> Handler x
-      handleServant = Handler . ExceptT
+      runServant :: IO (Either ServantErr x) -> Handler x
+      runServant = Handler . ExceptT
 
-      handle = handleServant . handleEff . handleCustom
-
-      server _ _ _ = serve apiSig $ hoistServer apiSig handle myApi
-
+      runServer store = runServant . runEff . runCustom store
       -- runServer store = Handler . flip runReaderT store
 
-      -- server store Prod paymentClient = serve petStoreApi $ hoistServer petStoreApi (runServer store) (prodHandler paymentClient)
-      -- server store Dev  paymentClient = serve devPetStoreApi $ hoistServer devPetStoreApi (runServer store) (devHandler paymentClient)
+      server store Prod paymentClient = serve petStoreApi $ hoistServer petStoreApi (runServer store) (prodHandler paymentClient)
+      server store Dev paymentClient = serve devPetStoreApi $ hoistServer devPetStoreApi (runServer store) (devHandler paymentClient store)
 
-      -- prodHandler paymentClient = listPets :<|> addPet :<|> removePet :<|> login :<|> logout :<|> addToBasket :<|> removeFromBasket :<|> checkout paymentClient :<|> listBasket
-      -- devHandler  paymentClient = prodHandler paymentClient :<|> reset :<|> pure petStoreSwagger
+      prodHandler paymentClient = listPets' :<|> addPet' :<|> removePet' :<|> login' :<|> logout' :<|> addToBasket' :<|> removeFromBasket' :<|> checkout' paymentClient :<|> listBasket'
+      devHandler  paymentClient store = prodHandler paymentClient :<|> reset' store :<|> pure petStoreSwagger

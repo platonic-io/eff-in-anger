@@ -1,9 +1,11 @@
 {-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE TemplateHaskell       #-}
 module PetStore.Messages
-  ( PetType(..), Pet(..), User(..), Input(..), Output(..), PetStoreError(..)
+  ( PetType(..), Pet(..), User(..), Input(..), Output(..), PetStoreError(..), Command(..), Event(..)
   , module Payment
   ) where
 
@@ -22,6 +24,37 @@ data Pet = Pet { petName  :: String
 
 data User = User { userName :: String }
           deriving (Eq,Ord,Show,Generic,ToJSON,FromJSON)
+
+data Command a where
+  Add' :: Pet -> Command Output
+  Remove' :: Pet -> Command Output
+  -- level2: Checkout
+  UserLogin' :: User -> Command Output
+  AddToBasket' :: User -> Pet -> Command Output
+  RemoveFromBasket' :: User -> Pet -> Command Output
+  CheckoutBasket' :: User -> Payment -> Command Output
+  CheckoutFailed' :: Output -> Command Output
+  UserLogout' :: User -> Command Output
+  -- level3: AddAccessory/RemoveAccessory w/ constraints depending on type of pet
+  -- Queries
+  ListPets' :: Command Output
+  GetUserBasket' :: User  -> Command Output
+
+data Event a where
+  PetAdded' :: Pet -> Event Output
+  PetRemoved' :: Pet -> Event Output
+  UserLoggedIn' :: User -> Event Output
+  AddedToBasket' :: User -> Pet -> Event Output
+  RemovedFromBasket' :: User -> Pet -> Event Output
+  CheckedOutBasket' :: User -> Payment -> Integer -> Event Output
+  UserLoggedOut' :: User -> Event Output
+  Answers' :: Event Output
+  UserBasket' :: User -> [ Pet ] -> Event Output
+  Pets' :: [ Pet ] -> Event Output
+  Error' :: PetStoreError -> Event Output
+
+instance ToJSON (Event a) where
+  toJSON = undefined
 
 -- rename back to Input / Output
 data Input = -- Commands

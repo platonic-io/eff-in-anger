@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE TupleSections         #-}
@@ -19,54 +20,42 @@ import           PetStore.Payment.Api
 import           PetStore.Store
 import           Servant
 
-type Foo = "foo"  :> Get '[JSON] String
-type Bar = "bar" :> Get '[JSON] String
-type ListPets = "listPets" :> Get '[JSON] Output
+type PetServer' m a =
+  (Member Command m) => Eff m a
 
-foo :: (Member IO m) => Eff m [Char]
-foo = pure "foo"
-
-bar :: Eff m [Char]
-bar = pure "bar"
-
-listPets' :: (Member LogEffect m) => Eff m Output
+listPets' :: PetServer' m Output
 listPets' = do
-  Freer.send $ Log ("hello" :: String)
-  pure $ Error PetAlreadyAdded -- send ListPets
+  Freer.send ListPets'
 
-type PetServer m a =
-  (MonadLog m, MonadReader StoreDB m, MonadError ServantErr m, MonadIO m) => m a
+addPet' :: Pet -> PetServer' m Output
+addPet' pet =  Freer.send (Add' pet)
 
-listPets :: PetServer m Output
-listPets =  send ListPets
+removePet' :: Pet -> PetServer' m Output
+removePet' pet =  Freer.send (Remove' pet)
 
-addPet :: Pet -> PetServer m Output
-addPet pet =  send (Add pet)
+reset' :: (Member IO m) => StoreDB -> PetServer' m NoContent
+reset' db = resetStore db >> pure NoContent
 
-removePet :: Pet -> PetServer m Output
-removePet pet =  send (Remove pet)
+login'            :: User -> PetServer' m Output
+login' user =  Freer.send (UserLogin' user)
 
-reset :: PetServer m NoContent
-reset =  resetStore >> pure NoContent
+logout'           :: User -> PetServer' m Output
+logout' user =  Freer.send (UserLogout' user)
 
-login            :: User -> PetServer m Output
-login user =  send (UserLogin user)
+addToBasket'      :: User -> Pet -> PetServer' m Output
+addToBasket' user pet =  Freer.send (AddToBasket' user pet)
 
-logout           :: User -> PetServer m Output
-logout user =  send (UserLogout user)
+removeFromBasket' :: User -> Pet -> PetServer' m Output
+removeFromBasket' user pet =  Freer.send (RemoveFromBasket' user pet)
 
-addToBasket      :: User -> Pet -> PetServer m Output
-addToBasket user pet =  send (AddToBasket user pet)
-
-removeFromBasket :: User -> Pet -> PetServer m Output
-removeFromBasket user pet =  send (RemoveFromBasket user pet)
-
-checkout         :: PaymentClient -> User -> Payment -> PetServer m Output
-checkout paymentClient user payment = do
-  res <- liftIO $ paymentClient payment
+checkout'         :: (Member IO m) => PaymentClient -> User -> Payment -> PetServer' m Output
+checkout' paymentClient user payment = do
+  res <- Freer.send $ paymentClient payment
   case res of
-    PaymentResult _ True -> send (CheckoutBasket user payment)
-    _                    -> mlog ("failed to validate payment" <> show res) >> pure (Error InvalidPayment)
+    PaymentResult _ True -> Freer.send (CheckoutBasket' user payment)
+    _                    -> do
+      Freer.send $ mlog' ("failed to validate payment" <> show res)
+      Freer.send $ CheckoutFailed' $ Error InvalidPayment
 
-listBasket       :: User -> PetServer m Output
-listBasket user = send (GetUserBasket user)
+listBasket'       :: User -> PetServer' m Output
+listBasket' user = Freer.send (GetUserBasket' user)

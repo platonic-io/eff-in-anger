@@ -1,8 +1,11 @@
+{-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeOperators         #-}
 -- | A backend store based on event sourcing
 --
 --  * Events affecting store are persisted as a stream of events into a file
@@ -12,19 +15,21 @@ module PetStore.Store where
 
 import           Control.Concurrent.MVar
 import           Control.Exception
+import           Control.Monad.Freer       (Eff, Member, interpret)
+import qualified Control.Monad.Freer       as Freer
 import           Control.Monad.Reader
-import           Control.Monad.Trans     (MonadIO (..))
-import           Data.Aeson              (eitherDecode, encode)
-import qualified Data.List               as List
-import           Data.Map                (member)
-import qualified Data.Map                as Map
+import           Control.Monad.Trans       (MonadIO (..))
+import           Data.Aeson                (eitherDecode, encode)
+import qualified Data.List                 as List
+import           Data.Map                  (member)
+import qualified Data.Map                  as Map
 import           Data.Maybe
 import           Data.Monoid
-import           Data.Text.Lazy.Encoding (decodeUtf8, encodeUtf8)
-import           Data.Text.Lazy.IO       (hGetLine, hPutStrLn)
+import           Data.Text.Lazy.Encoding   (decodeUtf8, encodeUtf8)
+import           Data.Text.Lazy.IO         (hGetLine, hPutStrLn)
 import           PetStore.Log
 import           PetStore.Messages
-import qualified System.IO               as IO
+import qualified System.IO                 as IO
 import           System.IO.Error
 
 data Store = Store { storedPets :: [ Pet ]
@@ -32,19 +37,68 @@ data Store = Store { storedPets :: [ Pet ]
                    , eventSink  :: IO.Handle
                    }
 
-send :: (MonadIO m, MonadReader StoreDB m) => Input -> m Output
-send input = withinLog input $ do
-  storedb <- ask
-  liftIO $ modifyMVar storedb $ \ store@Store{..} -> do
-    let event = act input store
-    hPutStrLn eventSink (decodeUtf8 $ encode event)
-    IO.hFlush eventSink
-    pure (apply event store, event)
+runEvent :: (Member IO m) => StoreDB -> Eff (Event : m) x -> Eff m x
+runEvent storedb = interpret eval where
+  eval :: (Member IO n) => Event y -> Eff n y
+  eval event = withinLog' event $ do
+    Freer.send $ modifyMVar storedb $ \ store@Store{..} -> do
+      --hPutStrLn eventSink (decodeUtf8 $ encode event)
+      IO.hFlush eventSink
+      pure (apply event store, undefined)
 
-resetStore :: (MonadIO m, MonadReader StoreDB m) => m ()
-resetStore = do
-  db <- ask
-  liftIO $ modifyMVar_  db $ \ Store{..} -> do
+  apply :: Event y -> Store -> Store
+  apply (PetAdded' pet) store                = store { storedPets = pet : storedPets store }
+  apply (PetRemoved' pet) store              = store { storedPets = List.delete pet $ storedPets store }
+  apply (UserLoggedIn' user) store
+    | not (user `member` baskets store)       = store { baskets = Map.insert user [] (baskets store) }
+    | otherwise                               = store
+  apply (AddedToBasket' user pet) store      = store { storedPets = List.delete pet $ storedPets store
+                                                      , baskets = Map.adjust (pet:) user $ baskets store }
+  apply (RemovedFromBasket' user pet) store = store { storedPets = pet : storedPets store
+                                                      , baskets = Map.adjust (List.delete pet) user $ baskets store }
+  apply (CheckedOutBasket' user _ _) store       = store { baskets = Map.adjust (const []) user $ baskets store }
+  apply (UserLoggedOut' user) store          = store { storedPets = putbackUserBasket (storedPets store)
+                                                      , baskets = Map.delete user $ baskets store }
+    where
+      putbackUserBasket pets =
+        case Map.lookup user (baskets store) of
+          Nothing -> pets
+          Just ps -> pets <> ps
+
+  apply UserBasket'{} store                    = store
+  apply Pets'{} store                          = store
+  apply Error'{} store                         = store
+
+send' :: (Member IO m) => StoreDB -> Input -> Eff m Output
+send' storedb input = withinLog' input $ Freer.send $ modifyMVar storedb $ \ store@Store{..} -> do
+  let event = act input store
+  hPutStrLn eventSink (decodeUtf8 $ encode event)
+  IO.hFlush eventSink
+  pure (apply event store, event)
+
+runCommand :: (Member LogEffect m, Member Event m, Member IO m) => StoreDB -> Eff (Command : m) x -> Eff m x
+runCommand storedb eff = do
+  Store (storedPets::[Pet]) baskets _ <- Freer.send $ readMVar storedb
+  let
+    -- why do we need the type signature here?
+    eval :: (Member IO n, Member Event n) => Command y -> Eff n y
+    eval (Add' pet) -- = send' storedb $ Add pet
+      | (pet :: Pet) `notElem` (storedPets::[Pet]) = Freer.send $ PetAdded' pet
+      | otherwise                = Freer.send $ Error' PetAlreadyAdded
+    eval (Remove' pet) = send' storedb $ Remove pet
+    eval (UserLogin' user) = send' storedb $ UserLogin user
+    eval (AddToBasket' user pet ) = send' storedb $ AddToBasket user pet
+    eval (RemoveFromBasket' user pet) = send' storedb $ RemoveFromBasket user pet
+    eval (CheckoutBasket' user payment) = send' storedb $ CheckoutBasket user payment
+    eval (CheckoutFailed' output) = pure output
+    eval (UserLogout' user) = send' storedb $ UserLogout user
+    eval ListPets' = send' storedb $ ListPets
+    eval (GetUserBasket' user) = send' storedb $ GetUserBasket user
+  interpret eval eff
+
+resetStore :: (Member IO m) => StoreDB -> Eff m ()
+resetStore db = do
+  Freer.send $ modifyMVar_  db $ \ Store{..} -> do
     IO.hSeek eventSink IO.AbsoluteSeek 0
     IO.hSetFileSize eventSink 0
     pure $ Store [] Map.empty eventSink
