@@ -6,10 +6,10 @@ jobs:
       - checkout
       - restore-cache:
           keys:
-            - stack-{{ checksum “stack.yaml” }}
+            - stack-{{ checksum "stack.yaml" }}
       - restore-cache:
           keys:
-            - stack-{{checksum “stack.yaml”}}-{{checksum “project.cabal”}}
+            - stack-{{checksum "stack.yaml"}}-{{checksum "eff-in-anger.cabal"}}
       - run: wget https://github.com/commercialhaskell/stack/releases/download/v1.6.1/stack-1.6.1-linux-x86_64.tar.gz -O /tmp/stack.tar.gz
       - run: sudo mkdir /tmp/stack-download
       - run: sudo tar -xzf /tmp/stack.tar.gz -C /tmp/stack-download
@@ -18,13 +18,13 @@ jobs:
       - run: stack setup
       - run: stack test
       - save-cache:
-          key: stack-{{ checksum “stack.yaml” }}
+          key: stack-{{ checksum "stack.yaml" }}
           paths:
-            - “~/.stack”
+            - "~/.stack"
       - save-cache:
-          key: stack-{{checksum “stack.yaml”}}-{{checksum “project.cabal”}}
+          key: stack-{{checksum "stack.yaml"}}-{{checksum "eff-in-anger.cabal"}}
           paths:
-            - “.stack-work”
+            - ".stack-work"
 
 workflows:
   version: 2
