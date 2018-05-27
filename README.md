@@ -28,3 +28,11 @@ Run the petstore server and the petstore payment service on ports 9090 and 8080 
 ```
 ./Build.hs run
 ```
+
+### Test
+
+Executes 100 random tests against a running PetStore service on `localhost:9090`. Those tests represent sequences of interactions that are run against the implementation to check correctness w.r.t a `Model`
+
+```
+./Build.hs test
+```

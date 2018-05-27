@@ -24,6 +24,7 @@ main = do
   case args of
     ["run"]   -> doRun
     ["build"] -> doBuild
+    ["test"]  -> doTest
     _         -> putStrLn "expecting one of 'run' or 'build'"
 
 
@@ -33,6 +34,8 @@ doBuild = do
   runProc "stack" [ "test",  "--fast" ]  "."
   runProc "stack" [ "install",  "--fast" ]  "."
 
+doTest :: IO ()
+doTest = runProc "stack" [ "exec",  "driver-petstore", "--" ,"1", "localhost", "9090" ]  "."
 
 doRun :: IO ()
 doRun = do
