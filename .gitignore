@@ -23,3 +23,5 @@ node-modules/
 TAGS
 target/
 store.db
+*.cabal
+dependency-reduced-pom.xml
