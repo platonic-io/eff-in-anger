@@ -25,3 +25,9 @@ jobs:
         keys: stack-{{checksum “stack.yaml”}}-{{checksum “project.cabal”}}
         paths:
           - “.stack-work”
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build_project
