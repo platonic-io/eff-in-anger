@@ -18,11 +18,11 @@ jobs:
       - run: stack setup
       - run: stack test
       - save-cache:
-          keys: stack-{{ checksum “stack.yaml” }}
+          key: stack-{{ checksum “stack.yaml” }}
           paths:
             - “~/.stack”
       - save-cache:
-          keys: stack-{{checksum “stack.yaml”}}-{{checksum “project.cabal”}}
+          key: stack-{{checksum “stack.yaml”}}-{{checksum “project.cabal”}}
           paths:
             - “.stack-work”
 
