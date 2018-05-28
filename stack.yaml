@@ -1,12 +1,6 @@
 flags: {}
 packages:
-- 'pet-store'
 - 'pet-store-backend'
-- location:
-    git: 'https://github.com/abailly/ioautomata.git'
-    commit: '6e9d09e246c8cc3f0210b3ee4ff9b7144ee4285d'
-  extra-dep: true
-
 extra-deps:
 - unagi-chan-0.4.0.0
 resolver: lts-11.7

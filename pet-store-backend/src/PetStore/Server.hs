@@ -1,53 +1,51 @@
-{-# LANGUAGE DataKinds         #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE TypeOperators     #-}
+-- keep
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeOperators #-}
+
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+
 
 module PetStore.Server where
 
 import           Control.Monad.Except
-import           Control.Monad.Freer (runM, Eff, Member)
-import           Control.Monad.Freer.Error (Error, runError)
+import           Control.Monad.Freer (runM, Eff, Member, send)
+import           Control.Monad.Freer.Error (runError, Error)
 import           Data.Aeson
-import           Data.Default
-import           Network.Wai.Handler.Warp                  (run)
-import           Network.Wai.Middleware.RequestLogger
-import           Network.Wai.Middleware.RequestLogger.JSON
-import           PetStore.Api
-import           PetStore.Config
-import           PetStore.Handler
-import           PetStore.Log
-import           PetStore.Payment.Api
-import           PetStore.Store
-import           PetStore.Command
-import           PetStore.Swagger
+import           GHC.Generics
+import           Network.Wai.Handler.Warp (run)
 import           Servant
+-- /keep
 
-startServer :: ServerConfig -> IO ()
-startServer conf@ServerConfig{..} = do
-  runM $ runLog $ mlog $ object [ "action" .= ("start" :: String), "configuration" .= conf ]
-  store <- makeStore
-  paymentClient <- makeClient paymentHost paymentPort
-  logger <- doLog operationMode
-  void $ run listeningPort $ logger $ server store operationMode paymentClient
-    where
-      doLog _ = mkRequestLogger $ def { outputFormat = CustomOutputFormatWithDetails formatAsJSON }
+startServer :: Int -> IO ()
+startServer port = do
+  run port application
+  where
+    runEff :: Eff '[Error ServantErr, IO] x -> IO (Either ServantErr x)
+    runEff = runM . runError
 
-      runCustom :: (Member IO m) => PaymentClient -> StoreDB -> Eff (Command : StoreEff : LogEffect : m) x -> Eff m x
-      runCustom paymentClient store = runLog . runStore store . runCommand paymentClient
+    runServant :: IO (Either ServantErr x) -> Handler x
+    runServant = Handler . ExceptT
 
-      runEff :: Eff '[Error ServantErr, IO] x -> IO (Either ServantErr x)
-      runEff = runM . runError -- . runLog
+    runServer :: Eff '[Error ServantErr, IO] x -> Handler x
+    runServer = runServant . runEff
 
-      runServant :: IO (Either ServantErr x) -> Handler x
-      runServant = Handler . ExceptT
+    application = serve signature $ hoistServer signature (runServer) implementation
 
-      runServer paymentClient store = runServant . runEff . runCustom paymentClient store
-      -- runServer store = Handler . flip runReaderT store
+    signature :: Proxy PetStoreSignature
+    signature = Proxy
 
-      server store Prod paymentClient = serve petStoreApi $ hoistServer petStoreApi (runServer paymentClient store) prodHandler
-      server store Dev paymentClient = serve devPetStoreApi $ hoistServer devPetStoreApi (runServer paymentClient store) (devHandler store)
+    implementation = addPetHandler
 
-      prodHandler = listPets' :<|> addPet' :<|> removePet' :<|> login' :<|> logout' :<|> addToBasket' :<|> removeFromBasket' :<|> checkout' :<|> listBasket'
-      devHandler  store = prodHandler :<|> reset' store :<|> pure petStoreSwagger
+    addPetHandler :: Pet -> Eff m ()
+    addPetHandler _ = pure ()
+
+type PetStoreSignature = AddPetRoute
+
+type AddPetRoute = "pets"  :> ReqBody '[JSON] Pet :> Post '[JSON] () -- keep/
+
+data Pet = Pet String
+  deriving (Generic, FromJSON)
