@@ -28,10 +28,7 @@ library:
     - warp
     - freer-simple
   exposed-modules:
-    - PetStore.Api
-    - PetStore.Messages
     - PetStore.Server
-    - PetStore.Config
   default-extensions:
     - OverloadedStrings
     - RecordWildCards
@@ -45,4 +42,16 @@ executables:
     main: server.hs
     dependencies:
       - base
+      - pet-store-backend
+
+tests:
+  runner:
+    source-dirs:
+      - test
+    main: runner.hs
+    dependencies:
+      - base
+      - containers
+      - freer-simple
+      - hspec
       - pet-store-backend
