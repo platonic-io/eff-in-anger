@@ -55,3 +55,7 @@ tests:
       - freer-simple
       - hspec
       - pet-store-backend
+      - servant
+      - servant-server
+      - servant-client
+
