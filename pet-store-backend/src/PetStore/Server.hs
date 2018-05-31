@@ -24,6 +24,8 @@ import           GHC.Generics              (Generic)
 import           Network.Wai.Handler.Warp  (run)
 import           Servant                   hiding (throwError)
 
+-- type AddPetRoute = "pets"  :> ReqBody '[JSON] Pet :> Post '[JSON] [Pet] -- keep/
+
 -- decodePets :: Either String [ByteString] -> Either String [Pet]
 -- decodePets = join . fmap (traverse eitherDecode)
 
