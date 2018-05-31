@@ -13,7 +13,7 @@
 module PetStore.Server where
 
 import           Control.Concurrent.MVar   (MVar, modifyMVar, newMVar)
-import           Control.Monad.Except      (ExceptT (..))
+import           Control.Monad.Except      (ExceptT (..), join)
 import           Control.Monad.Freer       (Eff, Member, interpret, runM, send)
 import           Control.Monad.Freer.Error (Error, runError, throwError)
 import           Data.Aeson                (FromJSON, ToJSON, eitherDecode,
@@ -25,6 +25,9 @@ import           GHC.Generics              (Generic)
 import           Network.Wai.Handler.Warp  (run)
 import           Servant                   hiding (throwError)
 -- /keep
+
+decodePets :: Either String [ByteString] -> Either String [Pet]
+decodePets = join . fmap (traverse eitherDecode)
 
 data Store = Store {
   collections :: Map.Map Key [ByteString]
@@ -58,10 +61,10 @@ runBusinessLogic :: (Member StorageEffect m, Member (Error ServantErr) m) => Eff
 runBusinessLogic = interpret eval where
   eval :: (Member StorageEffect n, Member (Error ServantErr) n) => BusinessLogicEffect a -> Eff n a
   eval (AddPet pet) = do
-    pets <- (fmap (traverse eitherDecode)) <$> (send $ AddDocument "pets" $ encode pet)
+    pets <- decodePets <$> (send $ AddDocument "pets" $ encode pet)
     case pets of
-      Right (Right p) -> pure p
-      _               -> throwError $ err500
+      Right p -> pure p
+      _       -> throwError $ err500
 
 runStorage :: (Member IO m) => MVar Store -> Eff (StorageEffect : m) x -> Eff m x
 runStorage store' = interpret eval where
