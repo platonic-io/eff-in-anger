@@ -24,7 +24,25 @@ import           GHC.Generics              (Generic)
 import           Network.Wai.Handler.Warp  (run)
 import           Servant                   hiding (throwError)
 
--- type AddPetRoute = "pets"  :> ReqBody '[JSON] Pet :> Post '[JSON] [Pet] -- keep/
+startServer :: IO ()
+startServer = do
+  let
+    handlers = addPet
+    application = serve routes $ hoistServer routes id handlers
+  run 1234 application
+
+data Pet = Pet{
+  petName :: String
+} deriving (Generic, ToJSON, FromJSON, Show, Eq)
+
+addPet :: (Monad m) => Pet -> m [Pet]
+addPet pet = pure [pet]
+
+type Routes = AddPetRoute
+type AddPetRoute = "pets" :> ReqBody '[JSON] Pet :> Post '[JSON] [Pet]
+
+routes :: Proxy Routes
+routes = Proxy
 
 -- decodePets :: Either String [ByteString] -> Either String [Pet]
 -- decodePets = join . fmap (traverse eitherDecode)

@@ -1,6 +1,4 @@
---import           PetStore.Server    (startServer)
-import           System.Environment
+import           PetStore.Server    (startServer)
 
 main :: IO ()
-main = do
-  putStrLn "hello world"
+main = startServer

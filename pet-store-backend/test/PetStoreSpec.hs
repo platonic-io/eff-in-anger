@@ -17,5 +17,8 @@ import           Test.Hspec
 
 spec :: Spec
 spec = describe "pet store tests" $ do
-  it "" $ do
-    pending
+  let
+    testPet = Pet "test-pet-1"
+  it "test addPet" $ do
+    res <- addPet testPet
+    res `shouldBe` [testPet]
