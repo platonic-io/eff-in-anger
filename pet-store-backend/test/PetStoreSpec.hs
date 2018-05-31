@@ -17,20 +17,5 @@ import           Servant
 
 spec :: Spec
 spec = describe "pet store tests" $ do
-  let testPet = Pet "test-pet"
-
-  it "add pet to MVar store" $ do
-    store <- newMVar $ Store Map.empty
-
-    actual :: Either ServantErr [Pet] <- runM $ runError $ runStorage store $ runBusinessLogic $ send $ AddPet $ testPet
-    actual `shouldBe` (Right [testPet])
-
-  it "add pet with store failure" $ do
-    let
-      runFailingStore :: Eff (StorageEffect : m) x -> Eff m x
-      runFailingStore = interpret $ \(AddDocument _ _) -> pure $ Left  "store failed"
-
-    actual :: Either ServantErr [Pet] <- runM $ runError $ runFailingStore $ runBusinessLogic $ send $ AddPet $ testPet
-    actual `shouldBe` (Left err500)
-
-
+  it "" $ do
+    pending
