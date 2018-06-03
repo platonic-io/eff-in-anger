@@ -36,7 +36,7 @@ data Pet = Pet{
 } deriving (Generic, ToJSON, FromJSON, Show, Eq)
 
 addPet :: (Monad m) => Pet -> m [Pet]
-addPet pet = pure [pet]
+addPet pet = pure []
 
 type Routes = AddPetRoute
 type AddPetRoute = "pets" :> ReqBody '[JSON] Pet :> Post '[JSON] [Pet]
