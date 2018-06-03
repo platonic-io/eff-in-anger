@@ -10,13 +10,13 @@ import           Control.Monad.Except
 import           Control.Monad.Freer (runM, Eff, Member)
 import           Control.Monad.Freer.Error (Error, runError)
 import           Data.Aeson
+import Control.Monad.Freer(send)
 import           Data.Default
 import           Network.Wai.Handler.Warp                  (run)
 import           Network.Wai.Middleware.RequestLogger
 import           Network.Wai.Middleware.RequestLogger.JSON
 import           PetStore.Api
 import           PetStore.Config
-import           PetStore.Handler
 import           PetStore.Log
 import           PetStore.Payment.Api
 import           PetStore.Store
@@ -49,5 +49,9 @@ startServer conf@ServerConfig{..} = do
       server store Prod paymentClient = serve petStoreApi $ hoistServer petStoreApi (runServer paymentClient store) prodHandler
       server store Dev paymentClient = serve devPetStoreApi $ hoistServer devPetStoreApi (runServer paymentClient store) (devHandler store)
 
-      prodHandler = listPets' :<|> addPet' :<|> removePet' :<|> login' :<|> logout' :<|> addToBasket' :<|> removeFromBasket' :<|> checkout' :<|> listBasket'
-      devHandler  store = prodHandler :<|> reset' store :<|> pure petStoreSwagger
+      prodHandler = send ListPets :<|> send . Add :<|> send . Remove :<|> send . UserLogin :<|> send . UserLogout
+                    :<|> send .: AddToBasket :<|> send .: RemoveFromBasket :<|> send .: CheckoutBasket :<|> send . GetUserBasket
+      devHandler  store = prodHandler :<|> reset store :<|> pure petStoreSwagger
+
+      (.:) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
+      (.:) = (.) . (.)
