@@ -15,3 +15,9 @@
 12. change tests to return a Right -> we want to handle errors in Storage
 13. write a test for failing store
 14. implement filaing store as an alternative effect
+
+
+* scaffold Servant
+* types for PetStore (Pet,encode...)
+* start at the point where we make a request
+* verbalise the fact people asked about Servant + Eff
