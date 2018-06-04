@@ -4,12 +4,13 @@
 {-# LANGUAGE TypeOperators       #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
 module PetStoreSpec where
 
 import           Control.Concurrent.MVar   (MVar, modifyMVar, newMVar)
 import           Control.Monad.Freer       (Eff, Member, interpret, runM, send)
-import           Control.Monad.Freer.Error (runError)
+import           Control.Monad.Freer.Error (runError, Error)
 import qualified Data.Map                  as Map
 import           PetStore.Server
 import           Servant

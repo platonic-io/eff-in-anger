@@ -11,7 +11,7 @@
 
 module PetStore.Server where
 
-import           Control.Concurrent.MVar   (MVar, modifyMVar, newMVar)
+import           Control.Concurrent.MVar   (MVar, modifyMVar, newMVar, readMVar)
 import           Control.Monad.Except      (ExceptT (..), join)
 import           Control.Monad.Freer       (Eff, Member, interpret, runM, send)
 import           Control.Monad.Freer.Error (Error, runError, throwError)

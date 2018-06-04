@@ -1,0 +1,17 @@
+             LambdaConf 2018
+
+           Coding Eff in Anger
+
+    Arnaud Bailly and Jan Christopher Vogt
+       @dr_c0d3             @cvogt
+
+   feedback: https://tiny.cc/eff-in-anger
+code: https://github.com/symbiont-io/eff-in-anger
+
+  We are hiring (wannabe) Haskell Developers
+
+                Symbiont.io
+
+        arnaud.bailly@symbiont.io
+          chris.vogt@symbiont.io
+
